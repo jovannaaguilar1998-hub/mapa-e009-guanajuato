@@ -1,0 +1,44 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Prueba de conexión E009</title>
+</head>
+<body>
+  <h3>Conexión con Google Sheets</h3>
+  <p id="estado">Consultando datos...</p>
+  <pre id="resultado"></pre>
+
+  <script>
+    const url = "https://script.google.com/macros/s/AKfycbzg3D2iHYQswchiGdODez0Z1Qb_9cZ-wTrVyPv7MPjtBdVmCfdZNbmaSG1s3CrpPxGk/exec";
+
+    async function probarConexion() {
+      try {
+        const respuesta = await fetch(url);
+        
+        if (!respuesta.ok) {
+          throw new Error("HTTP " + respuesta.status);
+        }
+
+        const datos = await respuesta.json();
+
+        document.getElementById("estado").textContent =
+          "Conexión exitosa. Registros recibidos: " + datos.length;
+
+        document.getElementById("resultado").textContent =
+          JSON.stringify(datos.slice(0, 5), null, 2);
+
+      } catch (error) {
+        document.getElementById("estado").textContent =
+          "No se pudo establecer la conexión.";
+
+        document.getElementById("resultado").textContent =
+          error.message;
+      }
+    }
+
+    probarConexion();
+  </script>
+</body>
+</html>
