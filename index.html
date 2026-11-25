@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>E009 · Mapa municipal interactivo</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoT9ctyFJQdXJg=" crossorigin="">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
     * { box-sizing: border-box; }
     html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: Arial, Helvetica, sans-serif; background: #fff; color: #173956; }
-    .wrap { position: relative; height: 100vh; height: 100dvh; display: flex; flex-direction: column; padding: 5px; gap: 5px; min-height: 200px; }
+    .wrap { height: 100vh; height: 100dvh; display: flex; flex-direction: column; padding: 5px; gap: 5px; min-height: 200px; }
     .toolbar { min-height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px; flex-shrink: 0; }
     .toolbar-title { font-size: 12px; font-weight: 700; color: #075084; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     label { font-size: 11px; color: #355b76; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
@@ -17,18 +17,16 @@
     .legend { background: rgba(255,255,255,.96); padding: 6px 8px; box-shadow: 0 1px 6px #0002; border-radius: 5px; font: 10px Arial, Helvetica, sans-serif; line-height: 15px; color: #25485f; max-width: 145px; }
     .legend b { display: block; margin-bottom: 3px; }
     .legend i { display: inline-block; width: 11px; height: 11px; vertical-align: -2px; margin-right: 5px; border: 1px solid #d4dce4; }
-    .leaflet-tooltip { font: 11px Arial, Helvetica, sans-serif; line-height: 1.4; }
+    .municipio-etiqueta { position:absolute; z-index:2000; display:none; pointer-events:none; min-width:135px; max-width:220px; padding:7px 9px; border:1px solid #a4b6c7; border-radius:3px; background:rgba(255,255,255,.96); box-shadow:0 2px 8px #0002; font:12px Arial,Helvetica,sans-serif; line-height:1.4; color:#243746; }
+    .municipio-etiqueta.visible { display:block; }
+    .municipio-etiqueta .etiqueta-nombre { font-weight:700; color:#075084; }
+    .municipio-etiqueta .etiqueta-valor { font-weight:700; }
     .leaflet-popup-content { margin: 12px 14px; }
     .popup-municipio { font: 14px Arial, Helvetica, sans-serif; font-weight: 700; color: #075084; margin-bottom: 5px; }
     .popup-periodo { font-size: 11px; color: #63788a; margin-bottom: 12px; }
     .popup-etiqueta { font-size: 11px; color: #355b76; }
     .popup-cifra { font-size: 24px; font-weight: 700; color: #075084; line-height: 1.25; }
     .popup-nota { font-size: 10px; color: #63788a; margin-top: 7px; }
-    .selection { position: absolute; z-index: 1300; left: 12px; top: 44px; width: min(235px, calc(100% - 24px)); background: #fff; border: 1px solid #b8d2e6; box-shadow: 0 3px 14px #0002; border-radius: 7px; padding: 11px 13px; display: none; }
-    .selection.visible { display: block; }
-    .selection-close { position: absolute; top: 4px; right: 6px; border: 0; background: transparent; color: #617d90; font-size: 19px; cursor: pointer; }
-    .selection .popup-municipio { padding-right: 18px; }
-    .leaflet-interactive { cursor: pointer; }
     .status { position: absolute; z-index: 1000; left: 13px; top: 45px; right: 13px; display: none; padding: 8px; font-size: 11px; color: #a72a2a; background: #fff3f1; border: 1px solid #efb6ae; border-radius: 4px; }
     .status.error { display: block; }
     .leaflet-control-zoom a { width: 24px !important; height: 24px !important; line-height: 24px !important; font-size: 15px !important; }
@@ -40,7 +38,7 @@
 <body>
   <div class="wrap">
     <div class="toolbar">
-      <span class="toolbar-title">Registros por municipio</span>
+      <span class="toolbar-title">Registros por municipio · Clic para consultar</span>
       <label for="trimestre">Trimestre
         <select id="trimestre" aria-label="Trimestre del mapa">
           <option value="3T">3T 2026</option>
@@ -50,14 +48,6 @@
       </label>
     </div>
     <div id="map" aria-label="Mapa coroplético interactivo de los 46 municipios de Guanajuato"></div>
-    <section id="seleccion" class="selection" aria-live="polite" aria-label="Municipio seleccionado">
-      <button id="cerrar-seleccion" class="selection-close" type="button" aria-label="Cerrar información">×</button>
-      <div class="popup-municipio" id="seleccion-nombre"></div>
-      <div class="popup-periodo" id="seleccion-periodo"></div>
-      <div class="popup-etiqueta">Registros de beneficiarios</div>
-      <div class="popup-cifra" id="seleccion-registros"></div>
-      <div class="popup-nota">Registros reportados, no personas únicas.</div>
-    </section>
   </div>
   <div class="status" id="status" role="alert"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -74,6 +64,37 @@
     let layer = null;
     let data = [];
     let geo = null;
+    let etiquetaFijada = false;
+    let municipioSeleccionado = null;
+    // Creamos la etiqueta dentro del propio contenedor del mapa.
+    const etiqueta = document.createElement('div');
+    etiqueta.className = 'municipio-etiqueta';
+    etiqueta.setAttribute('role', 'status');
+    document.getElementById('map').appendChild(etiqueta);
+
+    function mostrarEtiqueta(nombre, registros, punto, fijar = false) {
+      const cont = document.getElementById('map');
+      const p = punto || {x: cont.clientWidth / 2, y: cont.clientHeight / 2};
+      etiqueta.innerHTML = '<div class="etiqueta-nombre">' + escapeHtml(nombre) + '</div>' +
+        '<div><span class="etiqueta-valor">' + number.format(registros) + '</span> registros de beneficiarios</div>';
+      etiqueta.classList.add('visible');
+      if (fijar) etiquetaFijada = true;
+      const w = etiqueta.offsetWidth, h = etiqueta.offsetHeight;
+      let x = p.x + 12, y = p.y - h - 10;
+      if (x + w > cont.clientWidth - 5) x = p.x - w - 12;
+      x = Math.max(5, Math.min(x, cont.clientWidth - w - 5));
+      if (y < 5) y = p.y + 12;
+      y = Math.max(5, Math.min(y, cont.clientHeight - h - 5));
+      etiqueta.style.left = x + 'px';
+      etiqueta.style.top = y + 'px';
+    }
+    function ocultarEtiqueta() {
+      etiqueta.classList.remove('visible');
+      etiquetaFijada = false;
+      municipioSeleccionado = null;
+    }
+    // No ocultar la etiqueta con el clic general del mapa: el clic sobre
+    // un polígono también puede propagarse al mapa y cerrarla inmediatamente.
 
     function norm(s) {
       return String(s || '')
@@ -134,19 +155,6 @@
         rangos.join('');
     }
 
-    // Ficha visible sobre el mapa: no depende de que Leaflet abra un popup.
-    const panelSeleccion = document.getElementById('seleccion');
-    function cerrarSeleccion() { panelSeleccion.classList.remove('visible'); }
-    function seleccionarMunicipio(nombre, registros, trimestre) {
-      document.getElementById('seleccion-nombre').textContent = nombre;
-      document.getElementById('seleccion-periodo').textContent = trimestre + ' 2026';
-      document.getElementById('seleccion-registros').textContent = number.format(registros);
-      panelSeleccion.classList.add('visible');
-      console.info('Municipio seleccionado:', nombre, 'Registros:', registros);
-    }
-    document.getElementById('cerrar-seleccion').addEventListener('click', cerrarSeleccion);
-    L.DomEvent.disableClickPropagation(panelSeleccion);
-
     function render() {
       if (!geo || !Array.isArray(data)) return;
       const trimestre = dropdown.value;
@@ -160,8 +168,8 @@
       const max = Math.max(1, ...values.values());
 
       // Al cambiar de trimestre, cerramos la ventana anterior y recreamos las capas.
-      cerrarSeleccion();
       map.closePopup();
+      ocultarEtiqueta();
       if (layer) map.removeLayer(layer);
       layer = L.geoJSON(geo, {
         style: feature => {
@@ -174,36 +182,27 @@
           const registros = values.get(muniKey(nombre)) || 0;
           const nombreSeguro = escapeHtml(nombre);
 
-          // Etiqueta breve al pasar el cursor.
-          polygonLayer.bindTooltip(
-            '<b>' + nombreSeguro + '</b><br>Registros ' + trimestre + ': <b>' + number.format(registros) + '</b>',
-            { sticky: true }
-          );
-
-          // NUEVO: ventana permanente al hacer clic o tocar un municipio.
-          polygonLayer.bindPopup(
-            '<div style="min-width:170px">' +
-              '<div class="popup-municipio">' + nombreSeguro + '</div>' +
-              '<div class="popup-periodo">' + trimestre + ' 2026</div>' +
-              '<div class="popup-etiqueta">Registros de beneficiarios</div>' +
-              '<div class="popup-cifra">' + number.format(registros) + '</div>' +
-              '<div class="popup-nota">Registros reportados; no personas únicas.</div>' +
-            '</div>',
-            { maxWidth: 260, closeButton: true, autoPan: true }
-          );
-
-          polygonLayer.on('click', function(e) {
-            this.closeTooltip();
-            seleccionarMunicipio(nombre, registros, trimestre);
-            // También mantiene la ventana nativa como opción adicional.
-            this.openPopup(e.latlng);
-          });
-
-          polygonLayer.on('mouseover', () => {
+          // Etiqueta sencilla, similar al ejemplo: nombre y número de registros.
+          // No depende de los popups de Leaflet y se mantiene al hacer clic.
+          polygonLayer.on('mouseover', e => {
             polygonLayer.setStyle({ weight: 1.8, color: '#164765', fillOpacity: 1 });
             polygonLayer.bringToFront();
+            if (!etiquetaFijada) mostrarEtiqueta(nombre, registros, map.latLngToContainerPoint(e.latlng));
           });
-          polygonLayer.on('mouseout', () => layer.resetStyle(polygonLayer));
+          polygonLayer.on('mousemove', e => {
+            if (!etiquetaFijada) mostrarEtiqueta(nombre, registros, map.latLngToContainerPoint(e.latlng));
+          });
+          polygonLayer.on('mouseout', () => {
+            layer.resetStyle(polygonLayer);
+            if (!etiquetaFijada) etiqueta.classList.remove('visible');
+          });
+          polygonLayer.on('click', e => {
+            etiquetaFijada = false;
+            municipioSeleccionado = nombre;
+            console.info('Municipio seleccionado:', nombre, 'registros:', registros);
+            mostrarEtiqueta(nombre, registros, map.latLngToContainerPoint(e.latlng), true);
+            // Sin handler global de clic, la etiqueta permanece visible.
+          });
         }
       }).addTo(map);
 
