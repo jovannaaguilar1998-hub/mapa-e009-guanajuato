@@ -52,7 +52,8 @@ function muniKey(s){let n=norm(s);
   if(n==='CIUDAD MANUEL DOBLADO')return 'MANUEL DOBLADO';
   if(n==='SAN FRANCISCO DEL RINCON')return 'SAN FRANCISCO DEL RINCON';
   if(n==='PURISIMA DE BUSTOS')return 'PURISIMA DEL RINCON';
-  return n;
+  if(n==='SAN JOSE DE ITURBIDE')return 'SAN JOSE ITURBIDE';
+return n;
 }
 const legend=L.control({position:'bottomright'});
 legend.onAdd=()=>{const el=L.DomUtil.create('div','legend');el.id='legend';L.DomEvent.disableClickPropagation(el);return el};
