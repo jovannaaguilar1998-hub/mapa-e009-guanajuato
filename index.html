@@ -1,101 +1,213 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>E009 · Mapa municipal interactivo</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoT9ctyFJQdXJg=" crossorigin="">
-<style>
-*{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Arial,Helvetica,sans-serif;background:#fff;color:#173956}
-.wrap{height:100vh;height:100dvh;display:flex;flex-direction:column;padding:5px;gap:5px;min-height:200px}
-.toolbar{min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 4px;flex-shrink:0}
-.toolbar-title{font-size:12px;font-weight:700;color:#075084;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-label{font-size:11px;color:#355b76;white-space:nowrap;display:flex;align-items:center;gap:5px}
-select{font:11px Arial,Helvetica,sans-serif;color:#16466b;background:#fff;border:1px solid #b6cbdb;border-radius:4px;padding:5px 6px;max-width:95px}
-#map{flex:1;min-height:0;width:100%;background:#f4f8fb;border:1px solid #e0eaf1;border-radius:6px}
-.legend{background:rgba(255,255,255,.96);padding:6px 8px;box-shadow:0 1px 6px #0002;border-radius:5px;font:10px Arial,Helvetica,sans-serif;line-height:15px;color:#25485f;max-width:135px}
-.legend b{display:block;margin-bottom:3px}.legend i{display:inline-block;width:11px;height:11px;vertical-align:-2px;margin-right:5px;border:1px solid #d4dce4}
-.leaflet-tooltip{font:11px Arial,Helvetica,sans-serif;line-height:1.4}
-.status{position:absolute;z-index:1000;left:13px;top:45px;right:13px;display:none;padding:8px;font-size:11px;color:#a72a2a;background:#fff3f1;border:1px solid #efb6ae;border-radius:4px}
-.status.error{display:block}
-.leaflet-control-zoom a{width:24px!important;height:24px!important;line-height:24px!important;font-size:15px!important}
-.leaflet-bottom .leaflet-control{margin-bottom:8px}.leaflet-right .leaflet-control{margin-right:8px}
-@media (max-width:450px){.toolbar-title{font-size:11px}.legend{font-size:9px;line-height:13px;padding:5px 6px;max-width:120px}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>E009 · Mapa municipal interactivo</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoT9ctyFJQdXJg=" crossorigin="">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: Arial, Helvetica, sans-serif; background: #fff; color: #173956; }
+    .wrap { height: 100vh; height: 100dvh; display: flex; flex-direction: column; padding: 5px; gap: 5px; min-height: 200px; }
+    .toolbar { min-height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px; flex-shrink: 0; }
+    .toolbar-title { font-size: 12px; font-weight: 700; color: #075084; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    label { font-size: 11px; color: #355b76; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+    select { font: 11px Arial, Helvetica, sans-serif; color: #16466b; background: #fff; border: 1px solid #b6cbdb; border-radius: 4px; padding: 5px 6px; max-width: 110px; }
+    #map { flex: 1; min-height: 0; width: 100%; background: #f4f8fb; border: 1px solid #e0eaf1; border-radius: 6px; }
+    .legend { background: rgba(255,255,255,.96); padding: 6px 8px; box-shadow: 0 1px 6px #0002; border-radius: 5px; font: 10px Arial, Helvetica, sans-serif; line-height: 15px; color: #25485f; max-width: 145px; }
+    .legend b { display: block; margin-bottom: 3px; }
+    .legend i { display: inline-block; width: 11px; height: 11px; vertical-align: -2px; margin-right: 5px; border: 1px solid #d4dce4; }
+    .leaflet-tooltip { font: 11px Arial, Helvetica, sans-serif; line-height: 1.4; }
+    .leaflet-popup-content { margin: 12px 14px; }
+    .popup-municipio { font: 14px Arial, Helvetica, sans-serif; font-weight: 700; color: #075084; margin-bottom: 5px; }
+    .popup-periodo { font-size: 11px; color: #63788a; margin-bottom: 12px; }
+    .popup-etiqueta { font-size: 11px; color: #355b76; }
+    .popup-cifra { font-size: 24px; font-weight: 700; color: #075084; line-height: 1.25; }
+    .popup-nota { font-size: 10px; color: #63788a; margin-top: 7px; }
+    .status { position: absolute; z-index: 1000; left: 13px; top: 45px; right: 13px; display: none; padding: 8px; font-size: 11px; color: #a72a2a; background: #fff3f1; border: 1px solid #efb6ae; border-radius: 4px; }
+    .status.error { display: block; }
+    .leaflet-control-zoom a { width: 24px !important; height: 24px !important; line-height: 24px !important; font-size: 15px !important; }
+    .leaflet-bottom .leaflet-control { margin-bottom: 8px; }
+    .leaflet-right .leaflet-control { margin-right: 8px; }
+    @media (max-width: 450px) { .toolbar-title { font-size: 11px; } .legend { font-size: 9px; line-height: 13px; padding: 5px 6px; max-width: 120px; } }
+  </style>
 </head>
 <body>
-<div class="wrap">
- <div class="toolbar">
-   <span class="toolbar-title">Registros por municipio</span>
-   <label>Trimestre <select id="trimestre" aria-label="Trimestre del mapa"><option value="3T">3T 2026</option><option value="2T">2T 2026</option><option value="1T">1T 2026</option></select></label>
- </div>
- <div id="map" aria-label="Mapa coroplético interactivo de los 46 municipios de Guanajuato"></div>
-</div>
-<div class="status" id="status" role="alert"></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script>
-const appsScriptUrl='https://script.google.com/macros/s/AKfycbzg3D2iHYQswchiGdODez0Z1Qb_9cZ-wTrVyPv7MPjtBdVmCfdZNbmaSG1s3CrpPxGk/exec';
-const map=L.map('map',{scrollWheelZoom:false,zoomControl:true,attributionControl:false});
-const status=document.getElementById('status');
-const dropdown=document.getElementById('trimestre');
-let layer,data,geo;
-const number=new Intl.NumberFormat('es-MX');
-const ramp=['#e5f1fb','#bedbf0','#86b8df','#488fca','#1669a6','#084b7d'];
-function colorFor(n,max){if(!n)return '#d9dee3';return ramp[Math.min(5,Math.floor((n/max)*6))]}
-function norm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim()}
-// Variantes frecuentes entre los nombres usados en padrón y el catálogo geográfico.
-function muniKey(s){let n=norm(s);
-  if(n.startsWith('DOLORES HIDALGO'))return 'DOLORES HIDALGO';
-  if(n.startsWith('SILAO'))return 'SILAO';
-  if(n==='LEON DE LOS ALDAMA')return 'LEON';
-  if(n==='CIUDAD MANUEL DOBLADO')return 'MANUEL DOBLADO';
-  if(n==='SAN FRANCISCO DEL RINCON')return 'SAN FRANCISCO DEL RINCON';
-  if(n==='PURISIMA DE BUSTOS')return 'PURISIMA DEL RINCON';
-  if(n==='SAN JOSE DE ITURBIDE')return 'SAN JOSE ITURBIDE';
-return n;
-}
-const legend=L.control({position:'bottomright'});
-legend.onAdd=()=>{const el=L.DomUtil.create('div','legend');el.id='legend';L.DomEvent.disableClickPropagation(el);return el};
-legend.addTo(map);
-function render(){
- const t=dropdown.value;
- const filtered=data.filter(d=>String(d.trimestre).trim()===t);
- const values=new Map();
- filtered.forEach(d=>{const k=muniKey(d.municipio);values.set(k,(values.get(k)||0)+(Number(d.registros)||0))});
- const max=Math.max(1,...Array.from(values.values()));
- if(layer)map.removeLayer(layer);
- layer=L.geoJSON(geo,{
-  style:f=>({color:'#fff',weight:0.8,fillColor:colorFor(values.get(muniKey(f.properties.NOMGEO))||0,max),fillOpacity:.96}),
-  onEachFeature:(f,l)=>{
-   const n=values.get(muniKey(f.properties.NOMGEO))||0;
-   const name=String(f.properties.NOMGEO||'Municipio');
-   l.bindTooltip('<b>'+name.replace(/[<>&"']/g,'')+'</b><br>Registros '+t+': <b>'+number.format(n)+'</b>',{sticky:true});
-   l.on('mouseover',()=>{l.setStyle({weight:1.8,color:'#164765',fillOpacity:1});l.bringToFront()});
-   l.on('mouseout',()=>layer.resetStyle(l));
-  }
- }).addTo(map);
- document.getElementById('legend').innerHTML='<b>Registros · '+t+'</b>'+
-  '<div><i style="background:#d9dee3"></i>Sin registros</div>'+
-  ramp.map((c,i)=>{const lo=Math.max(1,Math.floor(i*max/6)+1),hi=Math.max(lo,Math.floor((i+1)*max/6));return '<div><i style="background:'+c+'"></i>'+number.format(lo)+'–'+number.format(hi)+'</div>'}).join('');
- const valid=new Set(geo.features.map(f=>muniKey(f.properties.NOMGEO)));
- const missing=[...values.keys()].filter(k=>!valid.has(k));
- const total=filtered.reduce((s,d)=>s+(Number(d.registros)||0),0);
- if(missing.length){status.textContent='Revisar nombres municipales sin correspondencia: '+missing.join(', ');status.classList.add('error')}
- else{status.classList.remove('error');console.info('Trimestre',t,'total de registros',total,'municipios con registros',Array.from(values.values()).filter(v=>v>0).length)}
-}
-Promise.all([
- fetch('./E009_Guanajuato_46_municipios_simplificado.geojson').then(r=>{if(!r.ok)throw Error('GeoJSON HTTP '+r.status);return r.json()}),
- fetch(appsScriptUrl,{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('Apps Script HTTP '+r.status);return r.json()})
-]).then(([g,d])=>{
- if(!Array.isArray(g.features)||g.features.length!==46)throw Error('Se esperaban 46 polígonos');
- if(!Array.isArray(d))throw Error('La respuesta de Apps Script no contiene una lista de registros');
- geo=g;data=d;
- const bounds=L.geoJSON(geo).getBounds();map.fitBounds(bounds,{padding:[12,12]});
- render();dropdown.addEventListener('change',render);
- new ResizeObserver(()=>{map.invalidateSize();map.fitBounds(bounds,{padding:[12,12],animate:false})}).observe(document.getElementById('map'));
-}).catch(e=>{status.textContent='No se pudo cargar el mapa: '+e.message;status.classList.add('error');map.setView([20.9,-101.25],8)});
-</script>
+  <div class="wrap">
+    <div class="toolbar">
+      <span class="toolbar-title">Registros por municipio</span>
+      <label for="trimestre">Trimestre
+        <select id="trimestre" aria-label="Trimestre del mapa">
+          <option value="3T">3T 2026</option>
+          <option value="2T">2T 2026</option>
+          <option value="1T">1T 2026</option>
+        </select>
+      </label>
+    </div>
+    <div id="map" aria-label="Mapa coroplético interactivo de los 46 municipios de Guanajuato"></div>
+  </div>
+  <div class="status" id="status" role="alert"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    // FUENTES: polígonos públicos del IPLANEG y registros agregados de Google Sheets.
+    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbzg3D2iHYQswchiGdODez0Z1Qb_9cZ-wTrVyPv7MPjtBdVmCfdZNbmaSG1s3CrpPxGk/exec';
+    const geojsonUrl = './E009_Guanajuato_46_municipios_simplificado.geojson';
+
+    const map = L.map('map', { scrollWheelZoom: false, zoomControl: true, attributionControl: false });
+    const status = document.getElementById('status');
+    const dropdown = document.getElementById('trimestre');
+    const number = new Intl.NumberFormat('es-MX');
+    const ramp = ['#e5f1fb', '#bedbf0', '#86b8df', '#488fca', '#1669a6', '#084b7d'];
+    let layer = null;
+    let data = [];
+    let geo = null;
+
+    function norm(s) {
+      return String(s || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase().replace(/[^A-Z0-9 ]/g, ' ')
+        .replace(/\s+/g, ' ').trim();
+    }
+
+    // Homologa variaciones entre el padrón y el catálogo municipal del IPLANEG.
+    function muniKey(s) {
+      const n = norm(s);
+      if (n.startsWith('DOLORES HIDALGO')) return 'DOLORES HIDALGO';
+      if (n.startsWith('SILAO')) return 'SILAO';
+      if (n === 'LEON DE LOS ALDAMA') return 'LEON';
+      if (n === 'CIUDAD MANUEL DOBLADO') return 'MANUEL DOBLADO';
+      if (n === 'PURISIMA DE BUSTOS') return 'PURISIMA DEL RINCON';
+      if (n.startsWith('SAN JOSE') && n.includes('ITURBIDE')) return 'SAN JOSE ITURBIDE';
+      if (n.startsWith('SAN FRANCISCO DEL RINCON')) return 'SAN FRANCISCO DEL RINCON';
+      if (n.includes('JUVENTINO ROSAS')) return 'SANTA CRUZ DE JUVENTINO ROSAS';
+      return n;
+    }
+
+    function colorFor(n, max) {
+      if (n <= 0) return '#d9dee3';
+      return ramp[Math.min(ramp.length - 1, Math.floor((n / max) * ramp.length))];
+    }
+
+    // Escapar nombres antes de insertarlos en HTML.
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    function mostrarError(mensaje) {
+      status.textContent = mensaje;
+      status.classList.add('error');
+    }
+
+    const legend = L.control({ position: 'bottomright' });
+    legend.onAdd = () => {
+      const el = L.DomUtil.create('div', 'legend');
+      el.id = 'legend';
+      L.DomEvent.disableClickPropagation(el);
+      return el;
+    };
+    legend.addTo(map);
+
+    function actualizarLeyenda(max, trimestre) {
+      const rangos = ramp.map((c, i) => {
+        const desde = Math.max(1, Math.floor(i * max / ramp.length) + 1);
+        const hasta = Math.max(desde, Math.floor((i + 1) * max / ramp.length));
+        return '<div><i style="background:' + c + '"></i>' + number.format(desde) + '–' + number.format(hasta) + '</div>';
+      });
+      document.getElementById('legend').innerHTML =
+        '<b>Registros · ' + trimestre + '</b>' +
+        '<div><i style="background:#d9dee3"></i>Sin registros</div>' +
+        rangos.join('');
+    }
+
+    function render() {
+      if (!geo || !Array.isArray(data)) return;
+      const trimestre = dropdown.value;
+      const filtered = data.filter(d => String(d.trimestre || '').trim().toUpperCase() === trimestre);
+      const values = new Map();
+      filtered.forEach(d => {
+        const clave = muniKey(d.municipio);
+        if (!clave) return;
+        values.set(clave, (values.get(clave) || 0) + (Number(d.registros) || 0));
+      });
+      const max = Math.max(1, ...values.values());
+
+      // Al cambiar de trimestre, cerramos la ventana anterior y recreamos las capas.
+      map.closePopup();
+      if (layer) map.removeLayer(layer);
+      layer = L.geoJSON(geo, {
+        style: feature => {
+          const clave = muniKey(feature.properties.NOMGEO || feature.properties.municipio_normalizado);
+          const registros = values.get(clave) || 0;
+          return { color: '#fff', weight: 0.8, fillColor: colorFor(registros, max), fillOpacity: 0.96 };
+        },
+        onEachFeature: (feature, polygonLayer) => {
+          const nombre = String(feature.properties.NOMGEO || feature.properties.municipio_normalizado || 'Municipio');
+          const registros = values.get(muniKey(nombre)) || 0;
+          const nombreSeguro = escapeHtml(nombre);
+
+          // Etiqueta breve al pasar el cursor.
+          polygonLayer.bindTooltip(
+            '<b>' + nombreSeguro + '</b><br>Registros ' + trimestre + ': <b>' + number.format(registros) + '</b>',
+            { sticky: true }
+          );
+
+          // NUEVO: ventana permanente al hacer clic o tocar un municipio.
+          polygonLayer.bindPopup(
+            '<div style="min-width:170px">' +
+              '<div class="popup-municipio">' + nombreSeguro + '</div>' +
+              '<div class="popup-periodo">' + trimestre + ' 2026</div>' +
+              '<div class="popup-etiqueta">Registros de beneficiarios</div>' +
+              '<div class="popup-cifra">' + number.format(registros) + '</div>' +
+              '<div class="popup-nota">Registros reportados; no personas únicas.</div>' +
+            '</div>',
+            { maxWidth: 260, closeButton: true, autoPan: true }
+          );
+
+          polygonLayer.on('mouseover', () => {
+            polygonLayer.setStyle({ weight: 1.8, color: '#164765', fillOpacity: 1 });
+            polygonLayer.bringToFront();
+          });
+          polygonLayer.on('mouseout', () => layer.resetStyle(polygonLayer));
+        }
+      }).addTo(map);
+
+      const valid = new Set(geo.features.map(f => muniKey(f.properties.NOMGEO || f.properties.municipio_normalizado)));
+      const missing = [...values.keys()].filter(k => !valid.has(k));
+      const total = filtered.reduce((sum, d) => sum + (Number(d.registros) || 0), 0);
+      const conRegistros = [...values.entries()].filter(([k, n]) => valid.has(k) && n > 0).length;
+      if (missing.length) mostrarError('Revisar nombres municipales sin correspondencia: ' + missing.join(', '));
+      else { status.textContent = ''; status.classList.remove('error'); }
+      console.info('Validación E009:', { trimestre, totalRegistros: total, municipiosConRegistros: conRegistros, municipiosSinRegistros: 46 - conRegistros, sinCorrespondencia: missing });
+      actualizarLeyenda(max, trimestre);
+    }
+
+    Promise.all([
+      fetch(geojsonUrl).then(r => { if (!r.ok) throw Error('GeoJSON HTTP ' + r.status); return r.json(); }),
+      fetch(appsScriptUrl, { cache: 'no-store' }).then(r => { if (!r.ok) throw Error('Apps Script HTTP ' + r.status); return r.json(); })
+    ]).then(([g, d]) => {
+      if (!Array.isArray(g.features) || g.features.length !== 46) throw Error('Se esperaban 46 polígonos municipales');
+      if (!Array.isArray(d)) throw Error('Apps Script no devolvió una lista de registros');
+      geo = g;
+      data = d;
+      const bounds = L.geoJSON(geo).getBounds();
+      map.fitBounds(bounds, { padding: [12, 12] });
+      render();
+      dropdown.addEventListener('change', render);
+      if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(() => {
+          map.invalidateSize();
+          map.fitBounds(bounds, { padding: [12, 12], animate: false });
+        }).observe(document.getElementById('map'));
+      }
+    }).catch(error => {
+      mostrarError('No se pudo cargar el mapa: ' + error.message);
+      console.error(error);
+      map.setView([20.9, -101.25], 8);
+    });
+  </script>
 </body>
 </html>
+
 
