@@ -8,7 +8,7 @@
   <style>
     * { box-sizing: border-box; }
     html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: Arial, Helvetica, sans-serif; background: #fff; color: #173956; }
-    .wrap { height: 100vh; height: 100dvh; display: flex; flex-direction: column; padding: 5px; gap: 5px; min-height: 200px; }
+    .wrap { position: relative; height: 100vh; height: 100dvh; display: flex; flex-direction: column; padding: 5px; gap: 5px; min-height: 200px; }
     .toolbar { min-height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px; flex-shrink: 0; }
     .toolbar-title { font-size: 12px; font-weight: 700; color: #075084; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     label { font-size: 11px; color: #355b76; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
@@ -24,6 +24,11 @@
     .popup-etiqueta { font-size: 11px; color: #355b76; }
     .popup-cifra { font-size: 24px; font-weight: 700; color: #075084; line-height: 1.25; }
     .popup-nota { font-size: 10px; color: #63788a; margin-top: 7px; }
+    .selection { position: absolute; z-index: 1300; left: 12px; top: 44px; width: min(235px, calc(100% - 24px)); background: #fff; border: 1px solid #b8d2e6; box-shadow: 0 3px 14px #0002; border-radius: 7px; padding: 11px 13px; display: none; }
+    .selection.visible { display: block; }
+    .selection-close { position: absolute; top: 4px; right: 6px; border: 0; background: transparent; color: #617d90; font-size: 19px; cursor: pointer; }
+    .selection .popup-municipio { padding-right: 18px; }
+    .leaflet-interactive { cursor: pointer; }
     .status { position: absolute; z-index: 1000; left: 13px; top: 45px; right: 13px; display: none; padding: 8px; font-size: 11px; color: #a72a2a; background: #fff3f1; border: 1px solid #efb6ae; border-radius: 4px; }
     .status.error { display: block; }
     .leaflet-control-zoom a { width: 24px !important; height: 24px !important; line-height: 24px !important; font-size: 15px !important; }
@@ -45,6 +50,14 @@
       </label>
     </div>
     <div id="map" aria-label="Mapa coroplético interactivo de los 46 municipios de Guanajuato"></div>
+    <section id="seleccion" class="selection" aria-live="polite" aria-label="Municipio seleccionado">
+      <button id="cerrar-seleccion" class="selection-close" type="button" aria-label="Cerrar información">×</button>
+      <div class="popup-municipio" id="seleccion-nombre"></div>
+      <div class="popup-periodo" id="seleccion-periodo"></div>
+      <div class="popup-etiqueta">Registros de beneficiarios</div>
+      <div class="popup-cifra" id="seleccion-registros"></div>
+      <div class="popup-nota">Registros reportados, no personas únicas.</div>
+    </section>
   </div>
   <div class="status" id="status" role="alert"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -121,6 +134,19 @@
         rangos.join('');
     }
 
+    // Ficha visible sobre el mapa: no depende de que Leaflet abra un popup.
+    const panelSeleccion = document.getElementById('seleccion');
+    function cerrarSeleccion() { panelSeleccion.classList.remove('visible'); }
+    function seleccionarMunicipio(nombre, registros, trimestre) {
+      document.getElementById('seleccion-nombre').textContent = nombre;
+      document.getElementById('seleccion-periodo').textContent = trimestre + ' 2026';
+      document.getElementById('seleccion-registros').textContent = number.format(registros);
+      panelSeleccion.classList.add('visible');
+      console.info('Municipio seleccionado:', nombre, 'Registros:', registros);
+    }
+    document.getElementById('cerrar-seleccion').addEventListener('click', cerrarSeleccion);
+    L.DomEvent.disableClickPropagation(panelSeleccion);
+
     function render() {
       if (!geo || !Array.isArray(data)) return;
       const trimestre = dropdown.value;
@@ -134,6 +160,7 @@
       const max = Math.max(1, ...values.values());
 
       // Al cambiar de trimestre, cerramos la ventana anterior y recreamos las capas.
+      cerrarSeleccion();
       map.closePopup();
       if (layer) map.removeLayer(layer);
       layer = L.geoJSON(geo, {
@@ -165,13 +192,12 @@
             { maxWidth: 260, closeButton: true, autoPan: true }
           );
 
-polygonLayer.on('click', function(e) {
-  // Cerrar la etiqueta que aparece al pasar el cursor
-  this.closeTooltip();
-
-  // Abrir la ventana con los datos del municipio
-  this.openPopup(e.latlng);
-});
+          polygonLayer.on('click', function(e) {
+            this.closeTooltip();
+            seleccionarMunicipio(nombre, registros, trimestre);
+            // También mantiene la ventana nativa como opción adicional.
+            this.openPopup(e.latlng);
+          });
 
           polygonLayer.on('mouseover', () => {
             polygonLayer.setStyle({ weight: 1.8, color: '#164765', fillOpacity: 1 });
