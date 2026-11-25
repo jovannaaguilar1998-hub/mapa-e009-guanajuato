@@ -2,72 +2,84 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>E009 · Registros por municipio · Guanajuato</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>E009 · Mapa municipal interactivo</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoT9ctyFJQdXJg=" crossorigin="">
   <style>
-    :root{font-family:Arial,Helvetica,sans-serif;background:#fff;color:#173956}*{box-sizing:border-box}
-    body{margin:0;padding:14px}header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:10px}
-    h1{font-family:Georgia,serif;color:#075084;margin:0;font-size:clamp(19px,2.8vw,28px)}.subtitle{color:#607788;font-size:12px;margin:5px 0 0}
-    select{border:1px solid #a9bfce;padding:9px 11px;border-radius:6px;background:white;color:#143a59}
-    .stats{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}.stat{border:1px solid #dbe5ee;border-radius:7px;padding:10px 14px;min-width:140px;flex:1}.stat span{display:block;color:#647887;font-size:11px}.stat strong{font-size:22px;color:#0a568d}
-    #map{height:min(70vh,570px);min-height:350px;background:#f4f8fb;border:1px solid #d8e4ef;border-radius:8px}
-    .legend{background:#fff;padding:10px 12px;box-shadow:0 1px 8px #0002;border-radius:5px;font:12px Arial;line-height:22px;color:#25485f}.legend b{display:block;margin-bottom:3px}
-    .legend i{display:inline-block;width:14px;height:14px;vertical-align:-3px;margin-right:6px;border:1px solid #d4dce4}.note{font-size:11px;color:#647887;line-height:1.4;margin-top:9px}
-    .status{font-size:12px;margin-bottom:9px;color:#47687f}.status.error{color:#ad3434}
-    .leaflet-tooltip{font:12px Arial;line-height:1.6}
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Arial,Helvetica,sans-serif;background:#fff;color:#173956}
+    .wrap{height:100vh;height:100dvh;display:flex;flex-direction:column;padding:5px;gap:5px;min-height:200px}
+    .toolbar{min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 4px;flex-shrink:0}
+    .toolbar-title{font-size:12px;font-weight:700;color:#075084;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    label{font-size:11px;color:#355b76;white-space:nowrap;display:flex;align-items:center;gap:5px}
+    select{font:11px Arial,Helvetica,sans-serif;color:#16466b;background:#fff;border:1px solid #b6cbdb;border-radius:4px;padding:5px 6px;max-width:95px}
+    #map{flex:1;min-height:0;width:100%;background:#f4f8fb;border:1px solid #e0eaf1;border-radius:6px}
+    .legend{background:rgba(255,255,255,.96);padding:6px 8px;box-shadow:0 1px 6px #0002;border-radius:5px;font:10px Arial,Helvetica,sans-serif;line-height:15px;color:#25485f;max-width:135px}
+    .legend b{display:block;margin-bottom:3px}.legend i{display:inline-block;width:11px;height:11px;vertical-align:-2px;margin-right:5px;border:1px solid #d4dce4}
+    .leaflet-tooltip{font:11px Arial,Helvetica,sans-serif;line-height:1.4}
+    .status{position:absolute;z-index:1000;left:13px;top:45px;right:13px;display:none;padding:8px;font-size:11px;color:#a72a2a;background:#fff3f1;border:1px solid #efb6ae;border-radius:4px}
+    .status.error{display:block}
+    .leaflet-control-zoom a{width:24px!important;height:24px!important;line-height:24px!important;font-size:15px!important}
+    .leaflet-bottom .leaflet-control{margin-bottom:8px}.leaflet-right .leaflet-control{margin-right:8px}
+    @media (max-width:450px){.toolbar-title{font-size:11px}.legend{font-size:9px;line-height:13px;padding:5px 6px;max-width:120px}}
   </style>
 </head>
 <body>
-  <header><div><h1>Registros de beneficiarios por municipio</h1><p class="subtitle">Guanajuato · Programa E009 · Padrones 2026</p></div>
-    <label>Trimestre: <select id="trimestre"><option value="3T">3T 2026</option><option value="2T">2T 2026</option><option value="1T">1T 2026</option></select></label>
-  </header>
-  <div class="stats"><div class="stat"><span>Registros del trimestre</span><strong id="total">—</strong></div><div class="stat"><span>Municipios con registros</span><strong id="municipios">—</strong></div><div class="stat"><span>Municipios sin registros</span><strong id="faltantes">—</strong></div></div>
-  <div class="status" id="status">Cargando polígonos y registros…</div>
-  <div id="map" aria-label="Mapa relleno interactivo de municipios de Guanajuato"></div>
-  <p class="note">Fuente geográfica: IPLANEG, mgm_gto2025. Registros: padrones agregados E009, cortes 1T–3T de 2026. La escala representa registros reportados, no personas únicas ni tasas de cobertura. Gris = sin registros en el corte. El selector de este mapa funciona de manera independiente al control de Looker Studio.</p>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script>
-    const map=L.map('map',{scrollWheelZoom:false, zoomControl:true});
-    const status=document.getElementById('status'); const dropdown=document.getElementById('trimestre');
-    let layer, data, geo; const number=new Intl.NumberFormat('es-MX');
-    const ramp=['#e5f1fb','#bedbf0','#86b8df','#488fca','#1669a6','#084b7d'];
-    const colorsFor=(n,max)=>{if(n===0)return '#d9dee3';const r=n/max;return ramp[Math.min(5,Math.floor(r*6))]};
-    const legend=L.control({position:'bottomright'});
-    legend.onAdd=function(){const el=L.DomUtil.create('div','legend');el.id='legend';return el};legend.addTo(map);
-    function render(){
-      const t=dropdown.value;
-      const filtered=data.filter(d=>d.trimestre===t);
-      const values=new Map(filtered.map(d=>[String(d.cvegeo),Number(d.registros)]));
-      const sum=filtered.reduce((a,d)=>a+Number(d.registros),0), active=filtered.filter(d=>d.registros>0).length, maximum=Math.max(...filtered.map(d=>Number(d.registros)));
-      document.getElementById('total').textContent=number.format(sum);
-      document.getElementById('municipios').textContent=active+' / 46';
-      document.getElementById('faltantes').textContent=46-active;
-      if(layer)map.removeLayer(layer);
-      layer=L.geoJSON(geo,{
-        style:f=>({color:'#fff',weight:1,fillColor:colorsFor(values.get(String(f.properties.CVEGEO))||0,maximum),fillOpacity:.94}),
-        onEachFeature:(f,l)=>{
-          const n=values.get(String(f.properties.CVEGEO))||0;
-          const label=f.properties.NOMGEO;
-          l.bindTooltip('<b>'+label+'</b><br>Registros ('+t+'): <b>'+number.format(n)+'</b>',{sticky:true});
-          l.on('mouseover',()=>{l.setStyle({weight:2,color:'#164765',fillOpacity:1});l.bringToFront()});
-          l.on('mouseout',()=>layer.resetStyle(l));
-        }
-      }).addTo(map);
-      const breaks=[0,1,.2,.4,.6,.8].map(x=>Math.round(x*maximum));
-      document.getElementById('legend').innerHTML='<b>Registros por municipio · '+t+'</b>'+
-        '<div><i style="background:#d9dee3"></i>Sin registros</div>'+
-        ramp.map((col,i)=>{const lo=Math.max(1,Math.floor(i*maximum/6)+1),hi=Math.floor((i+1)*maximum/6);return '<div><i style="background:'+col+'"></i>'+number.format(lo)+'–'+number.format(Math.max(lo,hi))+'</div>'}).join('');
-      status.textContent='Mapa actualizado: '+active+' municipios con registros en '+t+'.';
-    }
-    Promise.all([
-      fetch('./E009_Guanajuato_46_municipios_simplificado.geojson').then(r=>{if(!r.ok)throw Error('GeoJSON HTTP '+r.status);return r.json()}),
-      fetch('./E009_registros_municipales_2026.json').then(r=>{if(!r.ok)throw Error('Datos HTTP '+r.status);return r.json()})
-    ]).then(([g,d])=>{
-      if(g.features.length!==46)throw Error('Se encontraron '+g.features.length+' polígonos; se esperaban 46');
-      if(d.length!==138)throw Error('Se encontraron '+d.length+' registros geográficos; se esperaban 138');
-      geo=g;data=d;const bounds=L.geoJSON(geo).getBounds();map.fitBounds(bounds,{padding:[14,14]});render();dropdown.addEventListener('change',render);
-    }).catch(e=>{status.textContent='No se pudo cargar el mapa. Verifica que los tres archivos estén en el mismo repositorio. '+e.message;status.classList.add('error');map.setView([20.9,-101.25],8)});
-  </script>
+<div class="wrap">
+  <div class="toolbar">
+    <span class="toolbar-title">Registros por municipio</span>
+    <label>Trimestre <select id="trimestre" aria-label="Trimestre del mapa"><option value="3T">3T 2026</option><option value="2T">2T 2026</option><option value="1T">1T 2026</option></select></label>
+  </div>
+  <div id="map" aria-label="Mapa coroplético interactivo de los 46 municipios de Guanajuato"></div>
+</div>
+<div class="status" id="status" role="alert"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+  const map=L.map('map',{scrollWheelZoom:false,zoomControl:true,attributionControl:false});
+  const status=document.getElementById('status');
+  const dropdown=document.getElementById('trimestre');
+  let layer, data, geo;
+  const number=new Intl.NumberFormat('es-MX');
+  const ramp=['#e5f1fb','#bedbf0','#86b8df','#488fca','#1669a6','#084b7d'];
+  function colorFor(n,max){if(!n)return '#d9dee3';return ramp[Math.min(5,Math.floor((n/max)*6))]}
+  const legend=L.control({position:'bottomright'});
+  legend.onAdd=()=>{const el=L.DomUtil.create('div','legend');el.id='legend';L.DomEvent.disableClickPropagation(el);return el};
+  legend.addTo(map);
+  function render(){
+    const t=dropdown.value;
+    const filtered=data.filter(d=>d.trimestre===t);
+    const values=new Map(filtered.map(d=>[String(d.cvegeo),Number(d.registros)]));
+    const max=Math.max(1,...filtered.map(d=>Number(d.registros)));
+    if(layer)map.removeLayer(layer);
+    layer=L.geoJSON(geo,{
+      style:f=>({color:'#fff',weight:0.8,fillColor:colorFor(values.get(String(f.properties.CVEGEO))||0,max),fillOpacity:.96}),
+      onEachFeature:(f,l)=>{
+        const n=values.get(String(f.properties.CVEGEO))||0;
+        const name=f.properties.NOMGEO;
+        l.bindTooltip('<b>'+name+'</b><br>Registros '+t+': <b>'+number.format(n)+'</b>',{sticky:true});
+        l.on('mouseover',()=>{l.setStyle({weight:1.8,color:'#164765',fillOpacity:1});l.bringToFront()});
+        l.on('mouseout',()=>layer.resetStyle(l));
+      }
+    }).addTo(map);
+    document.getElementById('legend').innerHTML='<b>Registros · '+t+'</b>'+
+      '<div><i style="background:#d9dee3"></i>Sin registros</div>'+
+      ramp.map((c,i)=>{
+        const lo=Math.max(1,Math.floor(i*max/6)+1),hi=Math.max(lo,Math.floor((i+1)*max/6));
+        return '<div><i style="background:'+c+'"></i>'+number.format(lo)+'–'+number.format(hi)+'</div>'
+      }).join('');
+  }
+  Promise.all([
+    fetch('./E009_Guanajuato_46_municipios_simplificado.geojson').then(r=>{if(!r.ok)throw Error('GeoJSON HTTP '+r.status);return r.json()}),
+    fetch('./E009_registros_municipales_2026.json').then(r=>{if(!r.ok)throw Error('Datos HTTP '+r.status);return r.json()})
+  ]).then(([g,d])=>{
+    if(g.features.length!==46)throw Error('Se encontraron '+g.features.length+' polígonos; se esperaban 46');
+    if(d.length!==138)throw Error('Se encontraron '+d.length+' registros municipio-trimestre; se esperaban 138');
+    geo=g;data=d;
+    const bounds=L.geoJSON(geo).getBounds();
+    map.fitBounds(bounds,{padding:[12,12]});
+    render();dropdown.addEventListener('change',render);
+    new ResizeObserver(()=>{map.invalidateSize();map.fitBounds(bounds,{padding:[12,12],animate:false})}).observe(document.getElementById('map'));
+  }).catch(e=>{status.textContent='No se pudo cargar el mapa: '+e.message;status.classList.add('error');map.setView([20.9,-101.25],8)});
+</script>
 </body>
 </html>
