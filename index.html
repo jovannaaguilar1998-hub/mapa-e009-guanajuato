@@ -9,10 +9,12 @@
     * { box-sizing: border-box; }
     html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: Arial, Helvetica, sans-serif; background: #fff; color: #173956; }
     .wrap { height: 100vh; height: 100dvh; display: flex; flex-direction: column; padding: 5px; gap: 5px; min-height: 200px; }
-    .toolbar { min-height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px; flex-shrink: 0; }
+    .toolbar { flex-wrap: wrap; min-height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px; flex-shrink: 0; }
     .toolbar-title { font-size: 12px; font-weight: 700; color: #075084; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     label { font-size: 11px; color: #355b76; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
-    select { font: 11px Arial, Helvetica, sans-serif; color: #16466b; background: #fff; border: 1px solid #b6cbdb; border-radius: 4px; padding: 5px 6px; max-width: 110px; }
+    select { font: 11px Arial, Helvetica, sans-serif; color: #16466b; background: #fff; border: 1px solid #b6cbdb; border-radius: 4px; padding: 5px 6px; max-width: 175px; }
+    #proyecto { max-width: 190px; }
+    .toolbar-filtros { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:6px; }
     #map { flex: 1; min-height: 0; width: 100%; background: #f4f8fb; border: 1px solid #e0eaf1; border-radius: 6px; }
     .legend { background: rgba(255,255,255,.96); padding: 6px 8px; box-shadow: 0 1px 6px #0002; border-radius: 5px; font: 10px Arial, Helvetica, sans-serif; line-height: 15px; color: #25485f; max-width: 145px; }
     .legend b { display: block; margin-bottom: 3px; }
@@ -39,6 +41,12 @@
   <div class="wrap">
     <div class="toolbar">
       <span class="toolbar-title">Registros por municipio · Clic para consultar</span>
+      <div class="toolbar-filtros">
+      <label for="proyecto">Proyecto
+        <select id="proyecto" aria-label="Proyecto del mapa" disabled>
+          <option value="TODOS">Todos los proyectos</option>
+        </select>
+      </label>
       <label for="trimestre">Trimestre
         <select id="trimestre" aria-label="Trimestre del mapa">
           <option value="3T">3T 2026</option>
@@ -46,6 +54,7 @@
           <option value="1T">1T 2026</option>
         </select>
       </label>
+      </div>
     </div>
     <div id="map" aria-label="Mapa coroplético interactivo de los 46 municipios de Guanajuato"></div>
   </div>
@@ -59,6 +68,7 @@
     const map = L.map('map', { scrollWheelZoom: false, zoomControl: true, attributionControl: false });
     const status = document.getElementById('status');
     const dropdown = document.getElementById('trimestre');
+    const proyectoDropdown = document.getElementById('proyecto');
     const number = new Intl.NumberFormat('es-MX');
     const ramp = ['#e5f1fb', '#bedbf0', '#86b8df', '#488fca', '#1669a6', '#084b7d'];
     let layer = null;
@@ -117,6 +127,40 @@
       return n;
     }
 
+    // Acepta el identificador o nombre de proyecto si el servicio los proporciona.
+    // Las filas sin identificación NO se asignan artificialmente a un proyecto.
+    function codigoProyecto(d) {
+      const code = String(d.id_proyecto ?? d.ID_PROYECTO ?? d.clave_proyecto ?? d.proyecto_id ?? '').trim().toUpperCase();
+      const joined = norm(code + ' ' + (d.nombre_proyecto ?? d.proyecto ?? d.NOMBRE_PROYECTO ?? ''));
+      const match = joined.match(/QC0?124|QC0?125|QC4130/);
+      if (match) return match[0].replace('QC124','QC0124').replace('QC125','QC0125');
+      if (joined.includes('GRANDES SONRISAS')) return 'QC0125';
+      if (joined.includes('CAPACITACION INTEGRAL')) return 'QC0124';
+      if (joined.includes('FORTALECIMIENTO') && joined.includes('CENTROS')) return 'QC4130';
+      return '';
+    }
+
+    const proyectos = [
+      {id:'QC0124', nombre:'Capacitación Integral'},
+      {id:'QC0125', nombre:'Grandes Sonrisas'},
+      {id:'QC4130', nombre:'Centros Comunitarios'}
+    ];
+    function prepararProyectos() {
+      const identificados = new Set(data.map(codigoProyecto).filter(Boolean));
+      const hayCampo = data.some(d => ['id_proyecto','ID_PROYECTO','clave_proyecto','proyecto_id','nombre_proyecto','proyecto','NOMBRE_PROYECTO'].some(k => Object.prototype.hasOwnProperty.call(d,k)));
+      proyectoDropdown.innerHTML = '<option value="TODOS">Todos los proyectos</option>';
+      for (const p of proyectos) {
+        if (!identificados.has(p.id)) continue;
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.nombre;
+        proyectoDropdown.appendChild(opt);
+      }
+      proyectoDropdown.disabled = !hayCampo || identificados.size === 0;
+      if (proyectoDropdown.disabled) mostrarError('El servicio de datos no incluye un campo de proyecto identificable. Actualiza el Apps Script para devolver trimestre, municipio, registros e id_proyecto; el mapa general continúa disponible.');
+      else if (data.some(d => !codigoProyecto(d))) mostrarError('Hay registros sin proyecto identificable. Se muestran en «Todos los proyectos» pero no se atribuyen a proyectos individuales. Revisa la fuente.');
+    }
+
     function colorFor(n, max) {
       if (n <= 0) return '#d9dee3';
       return ramp[Math.min(ramp.length - 1, Math.floor((n / max) * ramp.length))];
@@ -143,14 +187,14 @@
     };
     legend.addTo(map);
 
-    function actualizarLeyenda(max, trimestre) {
+    function actualizarLeyenda(max, trimestre, proyecto) {
       const rangos = ramp.map((c, i) => {
         const desde = Math.max(1, Math.floor(i * max / ramp.length) + 1);
         const hasta = Math.max(desde, Math.floor((i + 1) * max / ramp.length));
         return '<div><i style="background:' + c + '"></i>' + number.format(desde) + '–' + number.format(hasta) + '</div>';
       });
       document.getElementById('legend').innerHTML =
-        '<b>Registros · ' + trimestre + '</b>' +
+        '<b>Registros · ' + trimestre + (proyecto !== 'TODOS' ? ' · ' + escapeHtml(proyecto) : '') + '</b>' +
         '<div><i style="background:#d9dee3"></i>Sin registros</div>' +
         rangos.join('');
     }
@@ -158,7 +202,8 @@
     function render() {
       if (!geo || !Array.isArray(data)) return;
       const trimestre = dropdown.value;
-      const filtered = data.filter(d => String(d.trimestre || '').trim().toUpperCase() === trimestre);
+      const proyecto = proyectoDropdown.value;
+      const filtered = data.filter(d => String(d.trimestre || '').trim().toUpperCase() === trimestre && (proyecto === 'TODOS' || codigoProyecto(d) === proyecto));
       const values = new Map();
       filtered.forEach(d => {
         const clave = muniKey(d.municipio);
@@ -211,9 +256,9 @@
       const total = filtered.reduce((sum, d) => sum + (Number(d.registros) || 0), 0);
       const conRegistros = [...values.entries()].filter(([k, n]) => valid.has(k) && n > 0).length;
       if (missing.length) mostrarError('Revisar nombres municipales sin correspondencia: ' + missing.join(', '));
-      else { status.textContent = ''; status.classList.remove('error'); }
-      console.info('Validación E009:', { trimestre, totalRegistros: total, municipiosConRegistros: conRegistros, municipiosSinRegistros: 46 - conRegistros, sinCorrespondencia: missing });
-      actualizarLeyenda(max, trimestre);
+      else if (!proyectoDropdown.disabled && !data.some(d => !codigoProyecto(d))) { status.textContent = ''; status.classList.remove('error'); }
+      console.info('Validación E009:', { trimestre, proyecto, totalRegistros: total, municipiosConRegistros: conRegistros, municipiosSinRegistros: 46 - conRegistros, sinCorrespondencia: missing });
+      actualizarLeyenda(max, trimestre, proyecto);
     }
 
     Promise.all([
@@ -224,10 +269,12 @@
       if (!Array.isArray(d)) throw Error('Apps Script no devolvió una lista de registros');
       geo = g;
       data = d;
+      prepararProyectos();
       const bounds = L.geoJSON(geo).getBounds();
       map.fitBounds(bounds, { padding: [12, 12] });
       render();
       dropdown.addEventListener('change', render);
+      proyectoDropdown.addEventListener('change', render);
       if (typeof ResizeObserver !== 'undefined') {
         new ResizeObserver(() => {
           map.invalidateSize();
@@ -242,4 +289,3 @@
   </script>
 </body>
 </html>
-
